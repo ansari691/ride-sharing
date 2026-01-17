@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, ScrollView, Alert, TouchableOpacity } from 'react-native';
+import { View, Text, ScrollView, Alert, TouchableOpacity, Platform } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useAuth } from '../hooks/useAuth';
 import { supabase } from '../lib/supabase';
@@ -110,7 +110,12 @@ export function HomeScreen() {
   return (
     <Container>
         <View className="flex-row justify-between items-center mb-6">
-            <Text className="text-2xl font-bold text-blue-600">SeatShare</Text>
+            <View>
+                <Text className="text-2xl font-bold text-blue-600">SeatShare</Text>
+                <Text className="text-xs text-gray-500">
+                    {Platform.OS === 'android' ? 'Running on Android' : 'Not running on Android'}
+                </Text>
+            </View>
             <View className="flex-row gap-4">
                 <TouchableOpacity onPress={() => navigation.navigate('MyMatches')}>
                     <Users size={24} color="black" />
