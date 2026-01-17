@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, ScrollView, Alert, Switch } from 'react-native';
+import { View, Text, ScrollView, Alert, Switch, Platform, TouchableOpacity, KeyboardAvoidingView } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useAuth } from '../hooks/useAuth';
 import { supabase } from '../lib/supabase';
@@ -7,7 +7,11 @@ import { Button } from '../components/ui/Button';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/Card';
 import { Input } from '../components/ui/Input';
 import { Container } from '../components/ui/Container';
-import { ArrowLeft } from 'lucide-react-native';
+import { ArrowLeft, Calendar, Clock } from 'lucide-react-native';
+import { GooglePlacesAutocomplete } from 'react-native-google-places-autocomplete';
+import DateTimePicker from '@react-native-community/datetimepicker';
+
+const GOOGLE_MAPS_KEY = process.env.EXPO_PUBLIC_GOOGLE_MAPS_KEY || "";
 
 export function CreateRideScreen() {
   const navigation = useNavigation<any>();
@@ -15,32 +19,37 @@ export function CreateRideScreen() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   
   const [pickup, setPickup] = useState("");
+  const [pickupCoords, setPickupCoords] = useState<{lat: number, lng: number} | null>(null);
+
   const [destination, setDestination] = useState("");
-  const [departureTime, setDepartureTime] = useState("");
+  const [destinationCoords, setDestinationCoords] = useState<{lat: number, lng: number} | null>(null);
+
+  const [date, setDate] = useState(new Date());
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [mode, setMode] = useState<'date' | 'time'>('date');
+
   const [isDriver, setIsDriver] = useState(false);
   const [seatsNeeded, setSeatsNeeded] = useState("1");
   const [seatsAvailable, setSeatsAvailable] = useState("3");
   const [notes, setNotes] = useState("");
 
+  const onDateChange = (event: any, selectedDate?: Date) => {
+    const currentDate = selectedDate || date;
+    if (Platform.OS === 'android') {
+        setShowDatePicker(false);
+    }
+    setDate(currentDate);
+  };
+
+  const showMode = (currentMode: 'date' | 'time') => {
+    setShowDatePicker(true);
+    setMode(currentMode);
+  };
+
   const handleSubmit = async () => {
     if (!pickup || !destination) {
       Alert.alert("Error", "Please enter both pickup and destination locations");
       return;
-    }
-
-    if (!departureTime) {
-        Alert.alert("Error", "Please enter a departure time");
-        return;
-    }
-    
-    // Simple validation for date format could be added here
-    let dateObj;
-    try {
-        dateObj = new Date(departureTime);
-        if (isNaN(dateObj.getTime())) throw new Error("Invalid Date");
-    } catch (e) {
-        Alert.alert("Error", "Invalid date format. Use YYYY-MM-DD HH:MM");
-        return;
     }
 
     setIsSubmitting(true);
@@ -49,12 +58,12 @@ export function CreateRideScreen() {
       const { error } = await supabase.from("ride_requests").insert({
         user_id: user?.id,
         pickup_address: pickup,
-        pickup_lat: 0, // Placeholder
-        pickup_lng: 0, // Placeholder
+        pickup_lat: pickupCoords?.lat || 0,
+        pickup_lng: pickupCoords?.lng || 0,
         destination_address: destination,
-        destination_lat: 0, // Placeholder
-        destination_lng: 0, // Placeholder
-        departure_time: dateObj.toISOString(),
+        destination_lat: destinationCoords?.lat || 0,
+        destination_lng: destinationCoords?.lng || 0,
+        departure_time: date.toISOString(),
         is_driver: isDriver,
         seats_needed: isDriver ? 0 : parseInt(seatsNeeded),
         seats_available: isDriver ? parseInt(seatsAvailable) : null,
@@ -72,8 +81,39 @@ export function CreateRideScreen() {
     }
   };
 
+  const autoCompleteStyles = {
+    container: {
+        flex: 0,
+    },
+    textInput: {
+        height: 50,
+        borderColor: '#D1D5DB', // gray-300
+        borderWidth: 1,
+        borderRadius: 6,
+        paddingHorizontal: 12,
+        backgroundColor: 'white',
+        fontSize: 16,
+    },
+    listView: {
+        backgroundColor: 'white',
+        borderRadius: 6,
+        borderWidth: 1,
+        borderColor: '#D1D5DB',
+        marginTop: 4,
+        zIndex: 5000,
+        position: 'absolute' as 'absolute',
+        top: 50,
+        left: 0,
+        right: 0,
+    }
+  };
+
   return (
     <Container>
+        <KeyboardAvoidingView
+            behavior={Platform.OS === "ios" ? "padding" : "height"}
+            style={{ flex: 1 }}
+        >
         <View className="flex-row items-center mb-6">
             <Button 
                 title="" 
@@ -86,40 +126,111 @@ export function CreateRideScreen() {
             <Text className="text-xl font-bold">Create Ride Request</Text>
         </View>
 
-      <ScrollView showsVerticalScrollIndicator={false}>
+        <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="always">
           {/* Location Inputs */}
-          <Card className="mb-4">
+          <Card className="mb-4 overflow-visible z-50">
             <CardHeader>
               <CardTitle>Route Details</CardTitle>
             </CardHeader>
-            <CardContent>
-                <Input
-                  label="Pickup Location"
-                  placeholder="Enter pickup address..."
-                  value={pickup}
-                  onChangeText={setPickup}
-                  containerClassName="mb-4"
-                />
+            <CardContent className="z-50">
+                <View className="mb-4 z-50">
+                    <Text className="text-sm font-medium text-gray-700 mb-2">Pickup Location</Text>
+                    <GooglePlacesAutocomplete
+                        placeholder='Enter pickup address...'
+                        onPress={(data, details = null) => {
+                            setPickup(data.description);
+                            if (details) {
+                                setPickupCoords({
+                                    lat: details.geometry.location.lat,
+                                    lng: details.geometry.location.lng
+                                });
+                            }
+                        }}
+                        query={{
+                            key: GOOGLE_MAPS_KEY,
+                            language: 'en',
+                        }}
+                        fetchDetails={true}
+                        styles={autoCompleteStyles}
+                        enablePoweredByContainer={false}
+                        textInputProps={{
+                            value: pickup,
+                            onChangeText: setPickup
+                        }}
+                    />
+                </View>
               
-                <Input
-                  label="Destination"
-                  placeholder="Enter destination address..."
-                  value={destination}
-                  onChangeText={setDestination}
-                  containerClassName="mb-4"
-                />
+                <View className="mb-4 z-40">
+                    <Text className="text-sm font-medium text-gray-700 mb-2">Destination</Text>
+                    <GooglePlacesAutocomplete
+                        placeholder='Enter destination address...'
+                        onPress={(data, details = null) => {
+                            setDestination(data.description);
+                            if (details) {
+                                setDestinationCoords({
+                                    lat: details.geometry.location.lat,
+                                    lng: details.geometry.location.lng
+                                });
+                            }
+                        }}
+                        query={{
+                            key: GOOGLE_MAPS_KEY,
+                            language: 'en',
+                        }}
+                        fetchDetails={true}
+                        styles={autoCompleteStyles}
+                        enablePoweredByContainer={false}
+                        textInputProps={{
+                            value: destination,
+                            onChangeText: setDestination
+                        }}
+                    />
+                </View>
 
-                <Input
-                  label="Departure Time (YYYY-MM-DD HH:MM)"
-                  placeholder="2023-12-25 10:00"
-                  value={departureTime}
-                  onChangeText={setDepartureTime}
-                />
+                <View>
+                    <Text className="text-sm font-medium text-gray-700 mb-2">Departure Time</Text>
+                    <View className="flex-row space-x-2">
+                        <TouchableOpacity
+                            onPress={() => showMode('date')}
+                            className="flex-1 flex-row items-center p-3 border border-gray-300 rounded-md bg-white"
+                        >
+                            <Calendar size={20} color="#6B7280" className="mr-2" />
+                            <Text>{date.toLocaleDateString()}</Text>
+                        </TouchableOpacity>
+
+                        <TouchableOpacity
+                            onPress={() => showMode('time')}
+                            className="flex-1 flex-row items-center p-3 border border-gray-300 rounded-md bg-white"
+                        >
+                            <Clock size={20} color="#6B7280" className="mr-2" />
+                            <Text>{date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</Text>
+                        </TouchableOpacity>
+                    </View>
+
+                    {showDatePicker && (
+                        <DateTimePicker
+                            testID="dateTimePicker"
+                            value={date}
+                            mode={mode}
+                            is24Hour={true}
+                            onChange={onDateChange}
+                            display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                        />
+                    )}
+
+                    {Platform.OS === 'ios' && showDatePicker && (
+                         <View className="flex-row justify-end mt-2">
+                            <TouchableOpacity onPress={() => setShowDatePicker(false)} className="bg-blue-500 px-4 py-2 rounded-md">
+                                <Text className="text-white">Done</Text>
+                            </TouchableOpacity>
+                        </View>
+                    )}
+                </View>
             </CardContent>
           </Card>
 
           {/* Ride Type */}
-          <Card className="mb-6">
+          <Card className="mb-6 -z-10">
             <CardHeader>
               <CardTitle>Ride Details</CardTitle>
             </CardHeader>
@@ -175,6 +286,7 @@ export function CreateRideScreen() {
             className="mb-8"
           />
         </ScrollView>
+        </KeyboardAvoidingView>
     </Container>
   );
 }
