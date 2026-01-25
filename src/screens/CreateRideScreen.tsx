@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, ScrollView, Alert, Switch, TouchableOpacity, Platform } from 'react-native';
+import { View, Text, ScrollView, Alert, Switch, TouchableOpacity } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useAuth } from '../hooks/useAuth';
 import { supabase } from '../lib/supabase';
@@ -11,7 +11,7 @@ import { ArrowLeft } from 'lucide-react-native';
 import MapboxGL from '@rnmapbox/maps';
 import { AddressAutocomplete } from '../components/AddressAutocomplete';
 import { getRoute, MapboxPlace, MapboxRoute } from '../lib/mapbox';
-import DateTimePicker from '@react-native-community/datetimepicker';
+import DatePicker from 'react-native-date-picker';
 
 export function CreateRideScreen() {
   const navigation = useNavigation<any>();
@@ -24,7 +24,6 @@ export function CreateRideScreen() {
 
   const [date, setDate] = useState(new Date());
   const [showPicker, setShowPicker] = useState(false);
-  const [mode, setMode] = useState<'date' | 'time' | 'datetime'>('date');
 
   const [isDriver, setIsDriver] = useState(false);
   const [seatsNeeded, setSeatsNeeded] = useState("1");
@@ -43,34 +42,12 @@ export function CreateRideScreen() {
     fetchRoute();
   }, [pickupPlace, destinationPlace]);
 
-  const onChange = (event: any, selectedDate?: Date) => {
-    const currentDate = selectedDate || date;
-
-    if (Platform.OS === 'android') {
-        setShowPicker(false);
-        if (event.type === 'set') {
-            setDate(currentDate);
-            // If we just picked a date, now pick a time
-            if (mode === 'date') {
-                setMode('time');
-                // Small timeout to allow the previous dialog to fully close
-                setTimeout(() => setShowPicker(true), 100);
-            }
-        }
-    } else {
-        // iOS
-        setDate(currentDate);
-    }
+  const onDateTimeChange = (selectedDate: Date) => {
+    setDate(selectedDate);
   };
 
-  const showDatepicker = () => {
-    if (Platform.OS === 'android') {
-        setMode('date');
-        setShowPicker(true);
-    } else {
-        setMode('datetime');
-        setShowPicker(!showPicker);
-    }
+  const handleDateTimePress = () => {
+    setShowPicker(true);
   };
 
   const handleSubmit = async () => {
@@ -146,35 +123,27 @@ export function CreateRideScreen() {
                 <View className="w-full space-y-2 mb-4 z-30">
                     <Text className="text-sm font-medium text-gray-700">Departure Time</Text>
                     <TouchableOpacity
-                        onPress={showDatepicker}
+                        onPress={handleDateTimePress}
                         className="w-full p-3 border border-gray-300 rounded-md bg-white"
                     >
                         <Text>{date.toLocaleString()}</Text>
                     </TouchableOpacity>
-                    {showPicker && Platform.OS === 'ios' && (
-                        <View className="mt-2">
-                            <DateTimePicker
-                                testID="dateTimePicker"
-                                value={date}
-                                mode={mode}
-                                is24Hour={true}
-                                display="spinner"
-                                onChange={onChange}
-                            />
-                        </View>
-                    )}
                 </View>
 
-                {showPicker && Platform.OS === 'android' && (
-                    <DateTimePicker
-                        testID="dateTimePicker"
-                        value={date}
-                        mode={mode as any}
-                        is24Hour={true}
-                        display="default"
-                        onChange={onChange}
-                    />
-                )}
+                <DatePicker
+                    modal
+                    open={showPicker}
+                    date={date}
+                    onConfirm={(selectedDate: Date) => {
+                        onDateTimeChange(selectedDate);
+                        setShowPicker(false);
+                    }}
+                    onCancel={() => setShowPicker(false)}
+                    mode="datetime"
+                    title="Select Departure Time"
+                    confirmText="Confirm"
+                    cancelText="Cancel"
+                />
             </CardContent>
           </Card>
 
