@@ -1,5 +1,5 @@
 import React from 'react';
-import { StatusBar } from 'expo-status-bar';
+import { StatusBar } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { AuthProvider } from './src/hooks/useAuth';
 import { AppNavigator } from './src/navigation/AppNavigator';
@@ -7,7 +7,7 @@ import { AppNavigator } from './src/navigation/AppNavigator';
 export default function App() {
   return (
     <SafeAreaProvider>
-      <StatusBar style="auto" />
+      <StatusBar barStyle="dark-content" />
       <AuthProvider>
         <AppNavigator />
       </AuthProvider>
