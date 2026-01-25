@@ -211,15 +211,7 @@ export function MyMatchesScreen() {
   return (
     <Container>
         <View className="flex-row items-center mb-6">
-            <Button 
-                title="" 
-                variant="ghost" 
-                className="mr-2 p-2"
-                onPress={() => navigation.goBack()}
-            >
-                <ArrowLeft size={24} color="black" />
-            </Button>
-            <Text className="text-xl font-bold">My Matches</Text>
+            <Text className="text-2xl font-bold text-blue-600">My Matches</Text>
         </View>
 
         <View className="flex-row mb-4 bg-gray-100 p-1 rounded-lg">

@@ -18,6 +18,8 @@ export function AuthScreen() {
   
   // Signup State
   const [name, setName] = useState('');
+  const [gender, setGender] = useState('');
+  const [phone, setPhone] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
 
   const handleAuth = async () => {
@@ -43,7 +45,17 @@ export function AuthScreen() {
         setIsLoading(false);
         return;
       }
-      const res = await signUp(email, password, name);
+       if (!gender) {
+        Alert.alert('Error', 'Please enter your gender');
+        setIsLoading(false);
+        return;
+      }
+       if (!phone) {
+        Alert.alert('Error', 'Please enter your phone number');
+        setIsLoading(false);
+        return;
+      }
+      const res = await signUp(email, password, name, gender, phone);
       error = res.error;
     }
 
@@ -91,13 +103,30 @@ export function AuthScreen() {
           </View>
 
           {!isLogin && (
-            <Input 
-              label="Full Name" 
-              placeholder="John Doe" 
-              value={name}
-              onChangeText={setName}
-              containerClassName="mb-4"
-            />
+            <>
+              <Input
+                label="Full Name"
+                placeholder="John Doe"
+                value={name}
+                onChangeText={setName}
+                containerClassName="mb-4"
+              />
+               <Input
+                label="Gender"
+                placeholder="Male, Female, Other"
+                value={gender}
+                onChangeText={setGender}
+                containerClassName="mb-4"
+              />
+               <Input
+                label="Phone Number"
+                placeholder="+1 234 567 8900"
+                keyboardType="phone-pad"
+                value={phone}
+                onChangeText={setPhone}
+                containerClassName="mb-4"
+              />
+            </>
           )}
 
           <Input 

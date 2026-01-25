@@ -1,12 +1,12 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, ScrollView, Alert, TouchableOpacity } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { View, Text, ScrollView, TouchableOpacity } from 'react-native';
+import { useNavigation, useIsFocused } from '@react-navigation/native';
 import { useAuth } from '../hooks/useAuth';
 import { supabase } from '../lib/supabase';
 import { Button } from '../components/ui/Button';
 import { Card, CardContent } from '../components/ui/Card';
 import { Container } from '../components/ui/Container';
-import { LogOut, Plus, MapPin, Clock, Users } from 'lucide-react-native';
+import { Plus, MapPin, Clock, Users } from 'lucide-react-native';
 
 interface RideRequest {
   id: string;
@@ -21,9 +21,10 @@ interface RideRequest {
   created_at: string;
 }
 
-export function HomeScreen() {
+export function MyRidesScreen() {
   const navigation = useNavigation<any>();
-  const { user, signOut } = useAuth();
+  const isFocused = useIsFocused();
+  const { user } = useAuth();
   const [rides, setRides] = useState<RideRequest[]>([]);
   const [loadingRides, setLoadingRides] = useState(true);
 
@@ -34,6 +35,7 @@ export function HomeScreen() {
       const { data, error } = await supabase
         .from("ride_requests")
         .select("*")
+        .eq("user_id", user.id)
         .order("departure_time", { ascending: true });
 
       if (!error && data) {
@@ -42,20 +44,17 @@ export function HomeScreen() {
       setLoadingRides(false);
     };
 
-    if (user) {
+    if (user && isFocused) {
       fetchRides();
     }
-  }, [user]);
-
-  const myRides = rides.filter((ride) => ride.user_id === user?.id);
-  const availableRides = rides.filter((ride) => ride.user_id !== user?.id && ride.status === "pending");
+  }, [user, isFocused]);
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
     return date.toLocaleDateString() + ' ' + date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   };
 
-  const renderRideCard = (ride: RideRequest, isOwner: boolean) => (
+  const renderRideCard = (ride: RideRequest) => (
     <Card key={ride.id} className="mb-4">
       <CardContent>
         <View className="flex-row justify-between mb-2">
@@ -64,11 +63,9 @@ export function HomeScreen() {
                     {ride.is_driver ? "Offering Ride" : "Looking for Ride"}
                 </Text>
             </View>
-            {isOwner && (
-                 <View className="px-2 py-1 rounded-md border border-gray-300">
-                    <Text className="text-xs text-gray-600 capitalize">{ride.status}</Text>
-                 </View>
-            )}
+             <View className="px-2 py-1 rounded-md border border-gray-300">
+                <Text className="text-xs text-gray-600 capitalize">{ride.status}</Text>
+             </View>
         </View>
 
         <View className="mb-3 space-y-1">
@@ -95,7 +92,7 @@ export function HomeScreen() {
             </View>
         </View>
 
-        {isOwner && ride.status === "pending" && (
+        {ride.status === "pending" && (
             <Button 
                 title="Find Matches" 
                 variant="outline" 
@@ -109,52 +106,24 @@ export function HomeScreen() {
 
   return (
     <Container>
-        <View className="flex-row justify-between items-center mb-6">
-            <Text className="text-2xl font-bold text-blue-600">SeatShare</Text>
-            <View className="flex-row gap-4">
-                <TouchableOpacity onPress={() => navigation.navigate('MyMatches')}>
-                    <Users size={24} color="black" />
-                </TouchableOpacity>
-                <TouchableOpacity onPress={() => signOut()}>
-                    <LogOut size={24} color="black" />
-                </TouchableOpacity>
-            </View>
-        </View>
+        <Text className="text-2xl font-bold text-blue-600 mb-6">My Rides</Text>
 
         <ScrollView showsVerticalScrollIndicator={false}>
-            <View className="flex-row gap-4 mb-6">
-                <Button 
-                    title="Offer a Ride" 
-                    className="flex-1"
-                    onPress={() => navigation.navigate('CreateRide')}
-                />
-                <Button 
-                    title="Need a Ride" 
-                    variant="secondary"
-                    className="flex-1"
-                    onPress={() => navigation.navigate('CreateRide')}
-                />
-            </View>
-
-            <View className="mb-6">
-                <Text className="text-lg font-bold mb-3">My Rides</Text>
-                {myRides.length === 0 ? (
-                    <Text className="text-gray-500 text-center py-4">No rides created yet.</Text>
-                ) : (
-                    myRides.map(ride => renderRideCard(ride, true))
-                )}
-            </View>
-
-            <View className="mb-20">
-                <Text className="text-lg font-bold mb-3">Available Rides</Text>
-                {loadingRides ? (
-                     <Text className="text-gray-500 text-center py-4">Loading...</Text>
-                ) : availableRides.length === 0 ? (
-                     <Text className="text-gray-500 text-center py-4">No available rides.</Text>
-                ) : (
-                    availableRides.map(ride => renderRideCard(ride, false))
-                )}
-            </View>
+            {loadingRides ? (
+                 <Text className="text-gray-500 text-center py-4">Loading...</Text>
+            ) : rides.length === 0 ? (
+                <View className="items-center py-12">
+                     <Text className="text-gray-500 text-center py-4">No rides created yet.</Text>
+                     <Button
+                        title="Create your first ride"
+                        onPress={() => navigation.navigate('CreateRide')}
+                    />
+                </View>
+            ) : (
+                <View className="mb-20">
+                    {rides.map(ride => renderRideCard(ride))}
+                </View>
+            )}
         </ScrollView>
         
         <TouchableOpacity 
