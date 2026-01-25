@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, ScrollView, Alert, Switch } from 'react-native';
+import { View, Text, ScrollView, Alert, Switch, TouchableOpacity, Platform } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useAuth } from '../hooks/useAuth';
 import { supabase } from '../lib/supabase';
@@ -11,6 +11,7 @@ import { ArrowLeft } from 'lucide-react-native';
 import MapboxGL from '@rnmapbox/maps';
 import { AddressAutocomplete } from '../components/AddressAutocomplete';
 import { getRoute, MapboxPlace, MapboxRoute } from '../lib/mapbox';
+import DateTimePicker from '@react-native-community/datetimepicker';
 
 export function CreateRideScreen() {
   const navigation = useNavigation<any>();
@@ -21,7 +22,10 @@ export function CreateRideScreen() {
   const [destinationPlace, setDestinationPlace] = useState<MapboxPlace | null>(null);
   const [route, setRoute] = useState<MapboxRoute | null>(null);
 
-  const [departureTime, setDepartureTime] = useState("");
+  const [date, setDate] = useState(new Date());
+  const [showPicker, setShowPicker] = useState(false);
+  const [mode, setMode] = useState<'date' | 'time' | 'datetime'>('date');
+
   const [isDriver, setIsDriver] = useState(false);
   const [seatsNeeded, setSeatsNeeded] = useState("1");
   const [seatsAvailable, setSeatsAvailable] = useState("3");
@@ -39,25 +43,40 @@ export function CreateRideScreen() {
     fetchRoute();
   }, [pickupPlace, destinationPlace]);
 
+  const onChange = (event: any, selectedDate?: Date) => {
+    const currentDate = selectedDate || date;
+
+    if (Platform.OS === 'android') {
+        setShowPicker(false);
+        if (event.type === 'set') {
+            setDate(currentDate);
+            // If we just picked a date, now pick a time
+            if (mode === 'date') {
+                setMode('time');
+                // Small timeout to allow the previous dialog to fully close
+                setTimeout(() => setShowPicker(true), 100);
+            }
+        }
+    } else {
+        // iOS
+        setDate(currentDate);
+    }
+  };
+
+  const showDatepicker = () => {
+    if (Platform.OS === 'android') {
+        setMode('date');
+        setShowPicker(true);
+    } else {
+        setMode('datetime');
+        setShowPicker(!showPicker);
+    }
+  };
+
   const handleSubmit = async () => {
     if (!pickupPlace || !destinationPlace) {
       Alert.alert("Error", "Please enter both pickup and destination locations");
       return;
-    }
-
-    if (!departureTime) {
-        Alert.alert("Error", "Please enter a departure time");
-        return;
-    }
-    
-    // Simple validation for date format could be added here
-    let dateObj;
-    try {
-        dateObj = new Date(departureTime);
-        if (isNaN(dateObj.getTime())) throw new Error("Invalid Date");
-    } catch (e) {
-        Alert.alert("Error", "Invalid date format. Use YYYY-MM-DD HH:MM");
-        return;
     }
 
     setIsSubmitting(true);
@@ -71,7 +90,7 @@ export function CreateRideScreen() {
         destination_address: destinationPlace.place_name,
         destination_lat: destinationPlace.center[1],
         destination_lng: destinationPlace.center[0],
-        departure_time: dateObj.toISOString(),
+        departure_time: date.toISOString(),
         is_driver: isDriver,
         seats_needed: isDriver ? 0 : parseInt(seatsNeeded),
         seats_available: isDriver ? parseInt(seatsAvailable) : null,
@@ -124,13 +143,38 @@ export function CreateRideScreen() {
                   containerClassName="mb-4 z-40"
                 />
 
-                <Input
-                  label="Departure Time (YYYY-MM-DD HH:MM)"
-                  placeholder="2023-12-25 10:00"
-                  value={departureTime}
-                  onChangeText={setDepartureTime}
-                  containerClassName="z-30"
-                />
+                <View className="w-full space-y-2 mb-4 z-30">
+                    <Text className="text-sm font-medium text-gray-700">Departure Time</Text>
+                    <TouchableOpacity
+                        onPress={showDatepicker}
+                        className="w-full p-3 border border-gray-300 rounded-md bg-white"
+                    >
+                        <Text>{date.toLocaleString()}</Text>
+                    </TouchableOpacity>
+                    {showPicker && Platform.OS === 'ios' && (
+                        <View className="mt-2">
+                            <DateTimePicker
+                                testID="dateTimePicker"
+                                value={date}
+                                mode={mode}
+                                is24Hour={true}
+                                display="spinner"
+                                onChange={onChange}
+                            />
+                        </View>
+                    )}
+                </View>
+
+                {showPicker && Platform.OS === 'android' && (
+                    <DateTimePicker
+                        testID="dateTimePicker"
+                        value={date}
+                        mode={mode as any}
+                        is24Hour={true}
+                        display="default"
+                        onChange={onChange}
+                    />
+                )}
             </CardContent>
           </Card>
 
