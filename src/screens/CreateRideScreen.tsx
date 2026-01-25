@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, ScrollView, Alert, Switch } from 'react-native';
+import { View, Text, ScrollView, Alert, Switch, TouchableOpacity } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useAuth } from '../hooks/useAuth';
 import { supabase } from '../lib/supabase';
@@ -11,6 +11,7 @@ import { ArrowLeft } from 'lucide-react-native';
 import MapboxGL from '@rnmapbox/maps';
 import { AddressAutocomplete } from '../components/AddressAutocomplete';
 import { getRoute, MapboxPlace, MapboxRoute } from '../lib/mapbox';
+import DatePicker from 'react-native-date-picker';
 
 export function CreateRideScreen() {
   const navigation = useNavigation<any>();
@@ -21,7 +22,9 @@ export function CreateRideScreen() {
   const [destinationPlace, setDestinationPlace] = useState<MapboxPlace | null>(null);
   const [route, setRoute] = useState<MapboxRoute | null>(null);
 
-  const [departureTime, setDepartureTime] = useState("");
+  const [date, setDate] = useState(new Date());
+  const [showPicker, setShowPicker] = useState(false);
+
   const [isDriver, setIsDriver] = useState(false);
   const [seatsNeeded, setSeatsNeeded] = useState("1");
   const [seatsAvailable, setSeatsAvailable] = useState("3");
@@ -39,25 +42,18 @@ export function CreateRideScreen() {
     fetchRoute();
   }, [pickupPlace, destinationPlace]);
 
+  const onDateTimeChange = (selectedDate: Date) => {
+    setDate(selectedDate);
+  };
+
+  const handleDateTimePress = () => {
+    setShowPicker(true);
+  };
+
   const handleSubmit = async () => {
     if (!pickupPlace || !destinationPlace) {
       Alert.alert("Error", "Please enter both pickup and destination locations");
       return;
-    }
-
-    if (!departureTime) {
-        Alert.alert("Error", "Please enter a departure time");
-        return;
-    }
-    
-    // Simple validation for date format could be added here
-    let dateObj;
-    try {
-        dateObj = new Date(departureTime);
-        if (isNaN(dateObj.getTime())) throw new Error("Invalid Date");
-    } catch (e) {
-        Alert.alert("Error", "Invalid date format. Use YYYY-MM-DD HH:MM");
-        return;
     }
 
     setIsSubmitting(true);
@@ -71,7 +67,7 @@ export function CreateRideScreen() {
         destination_address: destinationPlace.place_name,
         destination_lat: destinationPlace.center[1],
         destination_lng: destinationPlace.center[0],
-        departure_time: dateObj.toISOString(),
+        departure_time: date.toISOString(),
         is_driver: isDriver,
         seats_needed: isDriver ? 0 : parseInt(seatsNeeded),
         seats_available: isDriver ? parseInt(seatsAvailable) : null,
@@ -124,12 +120,29 @@ export function CreateRideScreen() {
                   containerClassName="mb-4 z-40"
                 />
 
-                <Input
-                  label="Departure Time (YYYY-MM-DD HH:MM)"
-                  placeholder="2023-12-25 10:00"
-                  value={departureTime}
-                  onChangeText={setDepartureTime}
-                  containerClassName="z-30"
+                <View className="w-full space-y-2 mb-4 z-30">
+                    <Text className="text-sm font-medium text-gray-700">Departure Time</Text>
+                    <TouchableOpacity
+                        onPress={handleDateTimePress}
+                        className="w-full p-3 border border-gray-300 rounded-md bg-white"
+                    >
+                        <Text>{date.toLocaleString()}</Text>
+                    </TouchableOpacity>
+                </View>
+
+                <DatePicker
+                    modal
+                    open={showPicker}
+                    date={date}
+                    onConfirm={(selectedDate: Date) => {
+                        onDateTimeChange(selectedDate);
+                        setShowPicker(false);
+                    }}
+                    onCancel={() => setShowPicker(false)}
+                    mode="datetime"
+                    title="Select Departure Time"
+                    confirmText="Confirm"
+                    cancelText="Cancel"
                 />
             </CardContent>
           </Card>
