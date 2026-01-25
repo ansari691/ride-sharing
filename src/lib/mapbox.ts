@@ -1,4 +1,4 @@
-import { EXPO_PUBLIC_MAPBOX_TOKEN } from '@env';
+import { EXPO_PUBLIC_MAPBOX_TOKEN } from "@env";
 
 const MAPBOX_API_URL = 'https://api.mapbox.com';
 
@@ -26,7 +26,7 @@ export const searchAddress = async (query: string): Promise<MapboxPlace[]> => {
 
   try {
     const response = await fetch(
-      `${MAPBOX_API_URL}/geocoding/v5/mapbox.places/${encodeURIComponent(query)}.json?access_token=${EXPO_PUBLIC_MAPBOX_TOKEN}&autocomplete=true&types=address,poi`
+      `${MAPBOX_API_URL}/geocoding/v5/mapbox.places/${encodeURIComponent(query)}.json?access_token=${EXPO_PUBLIC_MAPBOX_TOKEN}&autocomplete=true&types=address,poi&bbox=73%2C19.2%2C73.15%2C19.35`
     );
 
     const data = await response.json();
