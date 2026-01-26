@@ -77,7 +77,7 @@ export function CreateRideScreen() {
       if (error) throw error;
 
       Alert.alert("Success", "Ride request created successfully!");
-      navigation.navigate("Home");
+      navigation.navigate("Main");
     } catch (error: any) {
       Alert.alert("Error", error.message || "Failed to create ride request");
     } finally {

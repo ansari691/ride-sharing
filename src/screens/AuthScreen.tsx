@@ -3,6 +3,7 @@ import { View, Text, Alert, ScrollView } from 'react-native';
 import { useAuth } from '../hooks/useAuth';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
+import { RadioButtonGroup } from '../components/ui/RadioButton';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/Card';
 import { Container } from '../components/ui/Container';
 import { Car } from 'lucide-react-native';
@@ -18,6 +19,8 @@ export function AuthScreen() {
   
   // Signup State
   const [name, setName] = useState('');
+  const [gender, setGender] = useState('');
+  const [phone, setPhone] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
 
   const handleAuth = async () => {
@@ -43,7 +46,23 @@ export function AuthScreen() {
         setIsLoading(false);
         return;
       }
-      const res = await signUp(email, password, name);
+       if (!gender) {
+        Alert.alert('Error', 'Please select your gender');
+        setIsLoading(false);
+        return;
+      }
+       if (!phone) {
+        Alert.alert('Error', 'Please enter your phone number');
+        setIsLoading(false);
+        return;
+      }
+      const phoneRegex = /^[0-9]{10}$/;
+      if (!phoneRegex.test(phone.replace(/\D/g, ''))) {
+        Alert.alert('Error', 'Phone number must be 10 digits');
+        setIsLoading(false);
+        return;
+      }
+      const res = await signUp(email, password, name, gender, phone);
       error = res.error;
     }
 
@@ -91,13 +110,33 @@ export function AuthScreen() {
           </View>
 
           {!isLogin && (
-            <Input 
-              label="Full Name" 
-              placeholder="John Doe" 
-              value={name}
-              onChangeText={setName}
-              containerClassName="mb-4"
-            />
+            <>
+              <Input
+                label="Full Name"
+                placeholder="John Doe"
+                value={name}
+                onChangeText={setName}
+                containerClassName="mb-4"
+              />
+               <RadioButtonGroup
+                label="Gender"
+                value={gender}
+                options={[
+                    { label: 'Male', value: 'male' },
+                    { label: 'Female', value: 'female' },
+                ]}
+                onValueChange={setGender}
+                containerClassName="mb-4"
+              />
+               <Input
+                label="Phone Number"
+                placeholder="1234567890"
+                keyboardType="phone-pad"
+                value={phone}
+                onChangeText={setPhone}
+                containerClassName="mb-4"
+              />
+            </>
           )}
 
           <Input 
