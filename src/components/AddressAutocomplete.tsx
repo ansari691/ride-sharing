@@ -23,6 +23,12 @@ export function AddressAutocomplete({ label, placeholder, onSelect, defaultValue
   const [showSuggestions, setShowSuggestions] = useState(false);
 
   useEffect(() => {
+    if (defaultValue) {
+      setQuery(defaultValue);
+    }
+  }, [defaultValue]);
+
+  useEffect(() => {
     const timer = setTimeout(async () => {
       if (query.length > 2 && showSuggestions) {
         setLoading(true);

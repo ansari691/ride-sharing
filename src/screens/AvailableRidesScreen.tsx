@@ -5,6 +5,7 @@ import { useAuth } from '../hooks/useAuth';
 import { supabase } from '../lib/supabase';
 import { Card, CardContent } from '../components/ui/Card';
 import { Container } from '../components/ui/Container';
+import { Button } from '../components/ui/Button';
 import { MapPin, Clock, Users, Search, Filter } from 'lucide-react-native';
 import { TextInput } from 'react-native';
 
@@ -12,7 +13,11 @@ interface RideRequest {
   id: string;
   user_id: string;
   pickup_address: string;
+  pickup_lat: number;
+  pickup_lng: number;
   destination_address: string;
+  destination_lat: number;
+  destination_lng: number;
   departure_time: string;
   is_driver: boolean;
   seats_needed: number;
@@ -39,7 +44,7 @@ export function AvailableRidesScreen() {
 
       const { data, error } = await supabase
         .from("ride_requests")
-        .select("*")
+        .select("id, user_id, pickup_address, pickup_lat, pickup_lng, destination_address, destination_lat, destination_lng, departure_time, is_driver, seats_needed, seats_available, status, created_at")
         .neq("user_id", user.id)
         .eq("status", "pending")
         .order("departure_time", { ascending: true });
@@ -116,6 +121,25 @@ export function AvailableRidesScreen() {
                 </Text>
             </View>
         </View>
+
+        <Button
+            title={ride.is_driver ? "Request to Join" : "Offer Ride"}
+            onPress={() => {
+                navigation.navigate('CreateRide', {
+                    initialPickup: {
+                        place_name: ride.pickup_address,
+                        center: [ride.pickup_lng, ride.pickup_lat]
+                    },
+                    initialDestination: {
+                        place_name: ride.destination_address,
+                        center: [ride.destination_lng, ride.destination_lat]
+                    },
+                    initialDate: ride.departure_time,
+                    initialIsDriver: !ride.is_driver,
+                    targetRideId: ride.id
+                });
+            }}
+        />
       </CardContent>
     </Card>
   );

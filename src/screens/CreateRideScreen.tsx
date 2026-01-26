@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, ScrollView, Alert, Switch, TouchableOpacity } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute } from '@react-navigation/native';
 import { useAuth } from '../hooks/useAuth';
 import { supabase } from '../lib/supabase';
 import { Button } from '../components/ui/Button';
@@ -15,6 +15,9 @@ import DatePicker from 'react-native-date-picker';
 
 export function CreateRideScreen() {
   const navigation = useNavigation<any>();
+  const routeParams = useRoute<any>();
+  const params = routeParams.params || {};
+
   const { user } = useAuth();
   const [isSubmitting, setIsSubmitting] = useState(false);
   
@@ -29,6 +32,22 @@ export function CreateRideScreen() {
   const [seatsNeeded, setSeatsNeeded] = useState("1");
   const [seatsAvailable, setSeatsAvailable] = useState("3");
   const [notes, setNotes] = useState("");
+
+  useEffect(() => {
+    // Initialize from params if present
+    if (params.initialPickup) {
+        setPickupPlace(params.initialPickup);
+    }
+    if (params.initialDestination) {
+        setDestinationPlace(params.initialDestination);
+    }
+    if (params.initialDate) {
+        setDate(new Date(params.initialDate));
+    }
+    if (params.initialIsDriver !== undefined) {
+        setIsDriver(params.initialIsDriver);
+    }
+  }, [params]);
 
   useEffect(() => {
     const fetchRoute = async () => {
@@ -59,7 +78,7 @@ export function CreateRideScreen() {
     setIsSubmitting(true);
 
     try {
-      const { error } = await supabase.from("ride_requests").insert({
+      const { data: newRide, error } = await supabase.from("ride_requests").insert({
         user_id: user?.id,
         pickup_address: pickupPlace.place_name,
         pickup_lat: pickupPlace.center[1], // lat is index 1
@@ -72,11 +91,30 @@ export function CreateRideScreen() {
         seats_needed: isDriver ? 0 : parseInt(seatsNeeded),
         seats_available: isDriver ? parseInt(seatsAvailable) : null,
         notes: notes || null,
-      });
+      }).select().single();
 
       if (error) throw error;
 
-      Alert.alert("Success", "Ride request created successfully!");
+      // Handle Match Request if initiated from Available Rides
+      if (params.targetRideId && newRide) {
+          const { error: matchError } = await supabase.from("ride_matches").insert({
+            ride_request_id: newRide.id,
+            matched_ride_id: params.targetRideId,
+            requester_id: user?.id,
+          });
+
+          if (matchError) {
+              // We successfully created the ride but failed to match.
+              // We should let the user know, but treating the ride creation as success is probably better than failing everything.
+              console.error("Failed to create match request automatically", matchError);
+              Alert.alert("Success", "Ride request created, but failed to send match request automatically. Please find the ride and request manually.");
+          } else {
+              Alert.alert("Success", "Ride request created and match request sent!");
+          }
+      } else {
+         Alert.alert("Success", "Ride request created successfully!");
+      }
+
       navigation.navigate("Main");
     } catch (error: any) {
       Alert.alert("Error", error.message || "Failed to create ride request");
@@ -110,6 +148,7 @@ export function CreateRideScreen() {
                   label="Pickup Location"
                   placeholder="Enter pickup address..."
                   onSelect={setPickupPlace}
+                  defaultValue={pickupPlace?.place_name}
                   containerClassName="mb-4 z-50"
                 />
               
@@ -117,6 +156,7 @@ export function CreateRideScreen() {
                   label="Destination"
                   placeholder="Enter destination address..."
                   onSelect={setDestinationPlace}
+                  defaultValue={destinationPlace?.place_name}
                   containerClassName="mb-4 z-40"
                 />
 
