@@ -11,7 +11,7 @@ MapboxGL.setAccessToken(EXPO_PUBLIC_MAPBOX_TOKEN);
 export default function App() {
   return (
     <SafeAreaProvider>
-      <StatusBar barStyle="dark-content" />
+      <StatusBar translucent={true} backgroundColor="#2563EB" />
       <AuthProvider>
         <AppNavigator />
       </AuthProvider>
