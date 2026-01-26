@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, ScrollView, Alert, TouchableOpacity } from 'react-native';
+import { View, Text, ScrollView, Alert, TouchableOpacity, Linking } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useAuth } from '../hooks/useAuth';
 import { useRideMatching } from '../hooks/useRideMatching';
@@ -78,7 +78,7 @@ export function MyMatchesScreen() {
           const userIds = [rideRequest.data?.user_id, matchedRide.data?.user_id].filter(Boolean);
           const { data: profiles } = await supabase
             .from("profiles")
-            .select("user_id, full_name, avatar_url, rating")
+            .select("user_id, full_name, avatar_url, rating, phone")
             .in("user_id", userIds);
 
           const profileMap = new Map(profiles?.map((p) => [p.user_id, p]) || []);
@@ -197,10 +197,16 @@ export function MyMatchesScreen() {
 
           {match.status === "accepted" && (
              <Button 
-                title="Chat (Not Implemented)" 
+                title="Call"
                 variant="outline" 
                 className="w-full mt-2" 
-                onPress={() => Alert.alert("Coming Soon", "Chat is not yet implemented.")}
+                onPress={() => {
+                  if (otherRide?.profiles?.phone) {
+                    Linking.openURL(`tel:${otherRide.profiles.phone}`);
+                  } else {
+                    Alert.alert("Error", "Phone number not available");
+                  }
+                }}
              />
           )}
         </CardContent>
