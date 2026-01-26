@@ -4,6 +4,7 @@ import { useAuth } from '../hooks/useAuth';
 import { supabase } from '../lib/supabase';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
+import { RadioButtonGroup } from '../components/ui/RadioButton';
 import { Container } from '../components/ui/Container';
 import { LogOut, User as UserIcon, Camera } from 'lucide-react-native';
 
@@ -13,7 +14,7 @@ interface ProfileData {
   full_name: string;
   avatar_url: string | null;
   gender: string | null;
-  phone_number: string | null;
+  phone: string | null;
   rating: number | null;
 }
 
@@ -28,7 +29,7 @@ export function ProfileScreen() {
   const [formData, setFormData] = useState({
     full_name: '',
     gender: '',
-    phone_number: '',
+    phone: '',
   });
 
   useEffect(() => {
@@ -55,20 +56,20 @@ export function ProfileScreen() {
             full_name: user.user_metadata.full_name || '',
             avatar_url: null,
             gender: user.user_metadata.gender || '',
-            phone_number: user.user_metadata.phone_number || '',
+            phone: user.user_metadata.phone || '',
             rating: null
         });
         setFormData({
             full_name: user.user_metadata.full_name || '',
             gender: user.user_metadata.gender || '',
-            phone_number: user.user_metadata.phone_number || '',
+            phone: user.user_metadata.phone || '',
         });
       } else {
         setProfile(data);
         setFormData({
             full_name: data.full_name || '',
             gender: data.gender || '',
-            phone_number: data.phone_number || '',
+            phone: data.phone || '',
         });
       }
     } catch (e) {
@@ -80,19 +81,40 @@ export function ProfileScreen() {
 
   const handleSave = async () => {
     if (!user) return;
+
+    // Validation
+    if (!formData.full_name.trim()) {
+      Alert.alert('Error', 'Please enter your full name');
+      return;
+    }
+    if (!formData.gender) {
+      Alert.alert('Error', 'Please select your gender');
+      return;
+    }
+    if (!formData.phone.trim()) {
+      Alert.alert('Error', 'Please enter your phone number');
+      return;
+    }
+    const phoneRegex = /^[0-9]{10}$/;
+    if (!phoneRegex.test(formData.phone.replace(/\D/g, ''))) {
+      Alert.alert('Error', 'Phone number must be 10 digits');
+      return;
+    }
+
     setSaving(true);
 
     try {
         const updates = {
             full_name: formData.full_name,
             gender: formData.gender,
-            phone_number: formData.phone_number,
+            phone: formData.phone,
             updated_at: new Date(),
         };
 
         const { error } = await supabase
             .from('profiles')
-            .upsert({ user_id: user.id, ...updates });
+            .update(updates)
+            .eq('user_id', user.id);
 
         if (error) {
             throw error;
@@ -103,7 +125,7 @@ export function ProfileScreen() {
             data: {
                 full_name: formData.full_name,
                 gender: formData.gender,
-                phone_number: formData.phone_number
+                phone: formData.phone
             }
         });
 
@@ -182,15 +204,21 @@ export function ProfileScreen() {
                         value={formData.full_name}
                         onChangeText={(text) => setFormData({...formData, full_name: text})}
                     />
-                    <Input
+                    <RadioButtonGroup
                         label="Gender"
                         value={formData.gender}
-                        onChangeText={(text) => setFormData({...formData, gender: text})}
+                        options={[
+                            { label: 'Male', value: 'male' },
+                            { label: 'Female', value: 'female' },
+                        ]}
+                        onValueChange={(value) => setFormData({...formData, gender: value})}
                     />
                     <Input
                         label="Phone Number"
-                        value={formData.phone_number}
-                        onChangeText={(text) => setFormData({...formData, phone_number: text})}
+                        value={formData.phone}
+                        onChangeText={(text) => setFormData({...formData, phone: text})}
+                        placeholder="1234567890"
+                        keyboardType="phone-pad"
                     />
                     <View className="flex-row gap-4 mt-4">
                         <Button
@@ -202,7 +230,7 @@ export function ProfileScreen() {
                                 setFormData({
                                     full_name: profile?.full_name || '',
                                     gender: profile?.gender || '',
-                                    phone_number: profile?.phone_number || '',
+                                    phone: profile?.phone || '',
                                 });
                             }}
                         />
@@ -228,7 +256,7 @@ export function ProfileScreen() {
                     <View className="h-[1px] bg-gray-100" />
                     <View>
                         <Text className="text-sm text-gray-500 mb-1">Phone Number</Text>
-                        <Text className="text-base text-gray-900">{profile?.phone_number || 'Not set'}</Text>
+                        <Text className="text-base text-gray-900">{profile?.phone || 'Not set'}</Text>
                     </View>
                     <View className="h-[1px] bg-gray-100" />
                      <View>

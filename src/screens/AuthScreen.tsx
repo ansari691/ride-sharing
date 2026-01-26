@@ -3,6 +3,7 @@ import { View, Text, Alert, ScrollView } from 'react-native';
 import { useAuth } from '../hooks/useAuth';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
+import { RadioButtonGroup } from '../components/ui/RadioButton';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/Card';
 import { Container } from '../components/ui/Container';
 import { Car } from 'lucide-react-native';
@@ -46,12 +47,18 @@ export function AuthScreen() {
         return;
       }
        if (!gender) {
-        Alert.alert('Error', 'Please enter your gender');
+        Alert.alert('Error', 'Please select your gender');
         setIsLoading(false);
         return;
       }
        if (!phone) {
         Alert.alert('Error', 'Please enter your phone number');
+        setIsLoading(false);
+        return;
+      }
+      const phoneRegex = /^[0-9]{10}$/;
+      if (!phoneRegex.test(phone.replace(/\D/g, ''))) {
+        Alert.alert('Error', 'Phone number must be 10 digits');
         setIsLoading(false);
         return;
       }
@@ -111,16 +118,19 @@ export function AuthScreen() {
                 onChangeText={setName}
                 containerClassName="mb-4"
               />
-               <Input
+               <RadioButtonGroup
                 label="Gender"
-                placeholder="Male, Female, Other"
                 value={gender}
-                onChangeText={setGender}
+                options={[
+                    { label: 'Male', value: 'male' },
+                    { label: 'Female', value: 'female' },
+                ]}
+                onValueChange={setGender}
                 containerClassName="mb-4"
               />
                <Input
                 label="Phone Number"
-                placeholder="+1 234 567 8900"
+                placeholder="1234567890"
                 keyboardType="phone-pad"
                 value={phone}
                 onChangeText={setPhone}

@@ -46,7 +46,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         data: {
           full_name: fullName,
           gender: gender,
-          phone_number: phone,
+          phone: phone,
         }
       }
     });
@@ -55,11 +55,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const signIn = async (email: string, password: string) => {
-    const { error } = await supabase.auth.signInWithPassword({
+    const { data, error } = await supabase.auth.signInWithPassword({
       email,
       password,
     });
     
+    const {phone, gender} = data.user?.user_metadata ?? {};
+    await supabase.from('profiles').update({ phone, gender }).eq('user_id', data.user?.id);
     return { error: error as Error | null };
   };
 
