@@ -6,7 +6,7 @@ import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 import { RadioButtonGroup } from '../components/ui/RadioButton';
 import { Container } from '../components/ui/Container';
-import { LogOut, User as UserIcon, Camera } from 'lucide-react-native';
+import { LogOut, User as UserIcon, Camera, Plus, Trash2 } from 'lucide-react-native';
 
 interface ProfileData {
   id: string; // usually same as user_id or uuid
@@ -18,12 +18,23 @@ interface ProfileData {
   rating: number | null;
 }
 
+interface EmergencyContact {
+  id: string;
+  name: string;
+  phone: string;
+  relationship: string | null;
+  is_primary: boolean;
+}
+
 export function ProfileScreen() {
   const { user, signOut } = useAuth();
   const [profile, setProfile] = useState<ProfileData | null>(null);
   const [loading, setLoading] = useState(true);
   const [isEditing, setIsEditing] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [emergencyContacts, setEmergencyContacts] = useState<EmergencyContact[]>([]);
+  const [showAddContact, setShowAddContact] = useState(false);
+  const [newContact, setNewContact] = useState({ name: '', phone: '', relationship: '' });
 
   // Edit State
   const [formData, setFormData] = useState({
@@ -34,6 +45,7 @@ export function ProfileScreen() {
 
   useEffect(() => {
     fetchProfile();
+    fetchEmergencyContacts();
   }, [user]);
 
   const fetchProfile = async () => {
@@ -76,6 +88,74 @@ export function ProfileScreen() {
       console.error(e);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchEmergencyContacts = async () => {
+    if (!user) return;
+
+    try {
+      const { data, error } = await supabase
+        .from('emergency_contacts')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('is_primary', { ascending: false });
+
+      if (!error && data) {
+        setEmergencyContacts(data);
+      }
+    } catch (e) {
+      console.error('Error fetching emergency contacts:', e);
+    }
+  };
+
+  const handleAddContact = async () => {
+    if (!user || !newContact.name.trim() || !newContact.phone.trim()) {
+      Alert.alert('Error', 'Please fill in name and phone number');
+      return;
+    }
+
+    const phoneRegex = /^[0-9]{10}$/;
+    if (!phoneRegex.test(newContact.phone.replace(/\D/g, ''))) {
+      Alert.alert('Error', 'Phone number must be 10 digits');
+      return;
+    }
+
+    try {
+      const { data, error } = await supabase
+        .from('emergency_contacts')
+        .insert({
+          user_id: user.id,
+          name: newContact.name,
+          phone: newContact.phone,
+          relationship: newContact.relationship || null,
+        })
+        .select();
+
+      if (error) throw error;
+
+      setEmergencyContacts([...emergencyContacts, data[0]]);
+      setNewContact({ name: '', phone: '', relationship: '' });
+      setShowAddContact(false);
+      Alert.alert('Success', 'Emergency contact added');
+    } catch (error: any) {
+      Alert.alert('Error', error.message);
+    }
+  };
+
+  const handleDeleteContact = async (contactId: string) => {
+    try {
+      const { error } = await supabase
+        .from('emergency_contacts')
+        .delete()
+        .eq('id', contactId);
+
+      if (error) throw error;
+
+      setEmergencyContacts(emergencyContacts.filter(c => c.id !== contactId));
+      Alert.alert('Success', 'Emergency contact removed');
+    } catch (error: any) {
+      Alert.alert('Error', error.message);
     }
   };
 
@@ -265,6 +345,99 @@ export function ProfileScreen() {
                     </View>
                 </View>
             )}
+        </View>
+
+        {/* Emergency Contacts Section */}
+        <View className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 mb-6">
+          <View className="flex-row justify-between items-center mb-4">
+            <Text className="text-lg font-bold text-gray-800">Emergency Contacts</Text>
+            {!showAddContact && (
+              <TouchableOpacity
+                className="bg-blue-600 rounded-lg px-3 py-2 flex-row items-center gap-1"
+                onPress={() => setShowAddContact(true)}
+              >
+                <Plus size={16} color="white" />
+                <Text className="text-white font-semibold text-sm">Add</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+
+          {showAddContact && (
+            <View className="bg-blue-50 p-4 rounded-lg mb-4 border border-blue-200">
+              <Input
+                label="Contact Name"
+                value={newContact.name}
+                onChangeText={(text) => setNewContact({...newContact, name: text})}
+                placeholder="e.g., Mom, Dad, Sister"
+              />
+              <Input
+                label="Phone Number"
+                value={newContact.phone}
+                onChangeText={(text) => setNewContact({...newContact, phone: text})}
+                placeholder="1234567890"
+                keyboardType="phone-pad"
+              />
+              <Input
+                label="Relationship (Optional)"
+                value={newContact.relationship}
+                onChangeText={(text) => setNewContact({...newContact, relationship: text})}
+                placeholder="e.g., Mother, Friend"
+              />
+              <View className="flex-row gap-3 mt-4">
+                <Button
+                  title="Cancel"
+                  variant="outline"
+                  className="flex-1"
+                  onPress={() => {
+                    setShowAddContact(false);
+                    setNewContact({ name: '', phone: '', relationship: '' });
+                  }}
+                />
+                <Button
+                  title="Add Contact"
+                  className="flex-1"
+                  onPress={handleAddContact}
+                />
+              </View>
+            </View>
+          )}
+
+          {emergencyContacts.length === 0 ? (
+            <Text className="text-gray-500 text-center py-4">No emergency contacts yet</Text>
+          ) : (
+            <View className="space-y-3">
+              {emergencyContacts.map((contact) => (
+                <View key={contact.id} className="bg-gray-50 p-3 rounded-lg flex-row justify-between items-start border border-gray-200">
+                  <View className="flex-1">
+                    <Text className="font-semibold text-gray-800">{contact.name}</Text>
+                    <Text className="text-sm text-gray-600">{contact.phone}</Text>
+                    {contact.relationship && (
+                      <Text className="text-xs text-gray-500 mt-1">{contact.relationship}</Text>
+                    )}
+                  </View>
+                  <TouchableOpacity
+                    onPress={() => {
+                      Alert.alert(
+                        'Remove Contact',
+                        `Remove ${contact.name} from emergency contacts?`,
+                        [
+                          { text: 'Cancel', style: 'cancel' },
+                          {
+                            text: 'Remove',
+                            onPress: () => handleDeleteContact(contact.id),
+                            style: 'destructive',
+                          },
+                        ]
+                      );
+                    }}
+                    className="ml-3"
+                  >
+                    <Trash2 size={18} color="red" />
+                  </TouchableOpacity>
+                </View>
+              ))}
+            </View>
+          )}
         </View>
 
         <View className="mb-20">

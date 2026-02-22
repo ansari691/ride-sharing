@@ -18,6 +18,8 @@ export interface RideRequest {
   seats_available: number | null;
   status: string;
   notes: string | null;
+  total_cost: number | null;
+  distance: number | null;
   profiles?: {
     full_name: string;
     avatar_url: string | null;

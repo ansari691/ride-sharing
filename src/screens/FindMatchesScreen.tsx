@@ -4,6 +4,7 @@ import { useRoute, useNavigation } from '@react-navigation/native';
 import { useAuth } from '../hooks/useAuth';
 import { useRideMatching, RideRequest } from '../hooks/useRideMatching';
 import { supabase } from '../lib/supabase';
+import { calculateCostSplit } from '../lib/costCalculations';
 import { Button } from '../components/ui/Button';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/Card';
 import { Input } from '../components/ui/Input';
@@ -132,52 +133,70 @@ export function FindMatchesScreen() {
                     </Text>
                 </View>
             ) : (
-                matches.map((match) => (
-                  <Card key={match.id} className="mb-4">
-                    <CardContent>
-                      <View className="flex-row justify-between items-start mb-3">
-                        <View className="flex-row items-center">
-                          <View className="w-10 h-10 rounded-full bg-blue-100 items-center justify-center mr-2">
-                            <Users size={20} color="#2563EB" />
+                matches.map((match) => {
+                  // Calculate cost per person if match is offering a ride with cost
+                  let costBreakdown = null;
+                  if (match.is_driver && match.total_cost && match.seats_available) {
+                    costBreakdown = calculateCostSplit(match.total_cost, match.seats_available, false);
+                  }
+
+                  return (
+                    <Card key={match.id} className="mb-4">
+                      <CardContent>
+                        <View className="flex-row justify-between items-start mb-3">
+                          <View className="flex-row items-center">
+                            <View className="w-10 h-10 rounded-full bg-blue-100 items-center justify-center mr-2">
+                              <Users size={20} color="#2563EB" />
+                            </View>
+                            <View>
+                              <Text className="font-medium">{match.profiles?.full_name || "User"}</Text>
+                              {/* Rating could go here */}
+                            </View>
                           </View>
-                          <View>
-                            <Text className="font-medium">{match.profiles?.full_name || "User"}</Text>
-                            {/* Rating could go here */}
+                          <View className={`px-2 py-1 rounded-md ${match.is_driver ? 'bg-blue-100' : 'bg-gray-200'}`}>
+                              <Text className="text-xs">{match.is_driver ? "Driver" : "Passenger"}</Text>
                           </View>
                         </View>
-                        <View className={`px-2 py-1 rounded-md ${match.is_driver ? 'bg-blue-100' : 'bg-gray-200'}`}>
-                            <Text className="text-xs">{match.is_driver ? "Driver" : "Passenger"}</Text>
-                        </View>
-                      </View>
 
-                      <View className="mb-3 space-y-2">
-                        <View className="flex-row items-start">
-                          <MapPin size={16} color="#2563EB" />
-                          <Text className="ml-2 text-sm text-gray-800 flex-1">{match.pickup_address}</Text>
+                        <View className="mb-3 space-y-2">
+                          <View className="flex-row items-start">
+                            <MapPin size={16} color="#2563EB" />
+                            <Text className="ml-2 text-sm text-gray-800 flex-1">{match.pickup_address}</Text>
+                          </View>
+                          <View className="flex-row items-start">
+                            <MapPin size={16} color="#F59E0B" />
+                            <Text className="ml-2 text-sm text-gray-800 flex-1">{match.destination_address}</Text>
+                          </View>
                         </View>
-                        <View className="flex-row items-start">
-                          <MapPin size={16} color="#F59E0B" />
-                          <Text className="ml-2 text-sm text-gray-800 flex-1">{match.destination_address}</Text>
-                        </View>
-                      </View>
 
-                      <View className="flex-row flex-wrap gap-2 mb-4">
-                        <View className="bg-gray-100 px-2 py-1 rounded text-xs flex-row items-center">
-                             <Clock size={12} color="gray" />
-                             <Text className="text-xs ml-1">{formatDate(match.departure_time)}</Text>
+                        <View className="flex-row flex-wrap gap-2 mb-4">
+                          <View className="bg-gray-100 px-2 py-1 rounded text-xs flex-row items-center">
+                               <Clock size={12} color="gray" />
+                               <Text className="text-xs ml-1">{formatDate(match.departure_time)}</Text>
+                          </View>
+                           <View className="bg-green-50 px-2 py-1 rounded">
+                               <Text className="text-xs text-green-700">{match.pickupDistance.toFixed(1)} km away</Text>
+                          </View>
                         </View>
-                         <View className="bg-green-50 px-2 py-1 rounded">
-                             <Text className="text-xs text-green-700">{match.pickupDistance.toFixed(1)} km away</Text>
-                        </View>
-                      </View>
 
-                      <Button
-                        title="Request Match"
-                        onPress={() => setSelectedMatch(match)}
-                      />
-                    </CardContent>
-                  </Card>
-                ))
+                        {/* Cost Information */}
+                        {costBreakdown && (
+                          <View className="bg-blue-50 rounded-lg p-3 mb-4">
+                            <View className="flex-row justify-between">
+                              <Text className="text-sm text-gray-700">Cost per Person:</Text>
+                              <Text className="text-sm font-semibold text-blue-600">{costBreakdown.formattedPerPersonCost}</Text>
+                            </View>
+                          </View>
+                        )}
+
+                        <Button
+                          title="Request Match"
+                          onPress={() => setSelectedMatch(match)}
+                        />
+                      </CardContent>
+                    </Card>
+                  );
+                })
             )}
         </ScrollView>
 

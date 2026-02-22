@@ -3,6 +3,7 @@ import { View, Text, ScrollView, Alert, Switch, TouchableOpacity } from 'react-n
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { useAuth } from '../hooks/useAuth';
 import { supabase } from '../lib/supabase';
+import { calculateDistance } from '../lib/costCalculations';
 import { Button } from '../components/ui/Button';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/Card';
 import { Input } from '../components/ui/Input';
@@ -32,6 +33,8 @@ export function CreateRideScreen() {
   const [seatsNeeded, setSeatsNeeded] = useState("1");
   const [seatsAvailable, setSeatsAvailable] = useState("3");
   const [notes, setNotes] = useState("");
+  const [totalCost, setTotalCost] = useState("");
+  const [distance, setDistance] = useState<number>(0);
 
   useEffect(() => {
     // Initialize from params if present
@@ -54,8 +57,25 @@ export function CreateRideScreen() {
       if (pickupPlace && destinationPlace) {
         const routeData = await getRoute(pickupPlace.center, destinationPlace.center);
         setRoute(routeData);
+        
+        // Calculate straight-line distance using Haversine formula
+        const straightLineDistance = calculateDistance(
+          pickupPlace.center[1], // lat
+          pickupPlace.center[0], // lng
+          destinationPlace.center[1], // lat
+          destinationPlace.center[0]  // lng
+        );
+        console.log('Straight-line distance (Haversine):', straightLineDistance, 'km');
+        
+        // Get distance from Mapbox API (in meters, convert to km)
+        if (routeData && routeData.distance) {
+          const mapboxDistance = Math.round((routeData.distance / 1000) * 10) / 10;
+          console.log('Mapbox API distance (driving route):', mapboxDistance, 'km');
+          setDistance(mapboxDistance);
+        }
       } else {
         setRoute(null);
+        setDistance(0);
       }
     };
     fetchRoute();
@@ -75,6 +95,11 @@ export function CreateRideScreen() {
       return;
     }
 
+    if (isDriver && !totalCost) {
+      Alert.alert("Error", "Please enter the total cost for the ride");
+      return;
+    }
+
     setIsSubmitting(true);
 
     try {
@@ -91,6 +116,8 @@ export function CreateRideScreen() {
         seats_needed: isDriver ? 0 : parseInt(seatsNeeded),
         seats_available: isDriver ? parseInt(seatsAvailable) : null,
         notes: notes || null,
+        total_cost: isDriver && totalCost ? parseFloat(totalCost) : null,
+        distance: distance > 0 ? distance : null,
       }).select().single();
 
       if (error) throw error;
@@ -187,6 +214,18 @@ export function CreateRideScreen() {
             </CardContent>
           </Card>
 
+           {/* Distance Display */}
+           {pickupPlace && destinationPlace && distance > 0 && (
+            <Card className="mb-4 z-20">
+              <CardContent>
+                <View className="flex-row items-center justify-between py-2">
+                  <Text className="text-sm font-medium text-gray-700">Total Distance</Text>
+                  <Text className="text-lg font-bold text-blue-600">{distance} km</Text>
+                </View>
+              </CardContent>
+            </Card>
+          )}
+
            {/* Map Preview */}
            {pickupPlace && destinationPlace && route && (
             <Card className="mb-4 h-64 overflow-hidden z-20">
@@ -276,13 +315,23 @@ export function CreateRideScreen() {
               </View>
 
               {isDriver ? (
-                  <Input
-                    label="Seats Available"
-                    keyboardType="numeric"
-                    value={seatsAvailable}
-                    onChangeText={setSeatsAvailable}
-                    containerClassName="mb-4"
-                  />
+                  <>
+                    <Input
+                      label="Seats Available"
+                      keyboardType="numeric"
+                      value={seatsAvailable}
+                      onChangeText={setSeatsAvailable}
+                      containerClassName="mb-4"
+                    />
+                    <Input
+                      label="Total Cost (₹)"
+                      placeholder="e.g., 500"
+                      keyboardType="decimal-pad"
+                      value={totalCost}
+                      onChangeText={setTotalCost}
+                      containerClassName="mb-4"
+                    />
+                  </>
               ) : (
                   <Input
                     label="Seats Needed"

@@ -72,7 +72,7 @@ export function AuthScreen() {
       Alert.alert('Authentication Failed', error.message);
     } else {
         if (!isLogin) {
-             Alert.alert('Success', 'Account created! You can now log in.');
+            //  Alert.alert('Success', 'Account created!');
              setIsLogin(true);
         }
     }
@@ -85,7 +85,7 @@ export function AuthScreen() {
         <View className="h-16 w-16 bg-blue-600 rounded-2xl items-center justify-center mb-4">
           <Car size={32} color="white" />
         </View>
-        <Text className="text-3xl font-bold text-gray-900">SeatShare</Text>
+        <Text className="text-3xl font-bold text-gray-900">Cab Connect</Text>
         <Text className="text-gray-500 mt-2 text-center">Share rides, save together</Text>
       </View>
 

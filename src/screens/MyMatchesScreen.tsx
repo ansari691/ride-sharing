@@ -4,10 +4,11 @@ import { useNavigation } from '@react-navigation/native';
 import { useAuth } from '../hooks/useAuth';
 import { useRideMatching } from '../hooks/useRideMatching';
 import { supabase } from '../lib/supabase';
+import { calculateCostSplit, calculateDistance } from '../lib/costCalculations';
 import { Button } from '../components/ui/Button';
 import { Card, CardContent } from '../components/ui/Card';
 import { Container } from '../components/ui/Container';
-import { ArrowLeft, MapPin, Clock, Users, MessageSquare } from 'lucide-react-native';
+import { ArrowLeft, MapPin, Clock, Users, MessageSquare, Phone } from 'lucide-react-native';
 
 interface MatchWithDetails {
   id: string;
@@ -130,11 +131,51 @@ export function MyMatchesScreen() {
     return date.toLocaleDateString() + ' ' + date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   };
 
+  const handleCall = (phoneNumber: string | null | undefined) => {
+    if (!phoneNumber) {
+      Alert.alert("Phone Number Unavailable", "The other user's phone number is not available.");
+      return;
+    }
+    const phoneUrl = `tel:${phoneNumber}`;
+    Linking.canOpenURL(phoneUrl)
+      .then(supported => {
+        if (supported) {
+          Linking.openURL(phoneUrl);
+        } else {
+          Alert.alert("Error", "Unable to make phone calls on this device.");
+        }
+      })
+      .catch(err => {
+        console.error("Error opening phone dialer:", err);
+        Alert.alert("Error", "Failed to open phone dialer.");
+      });
+  };
+
+  
   const MatchCard = ({ match }: { match: MatchWithDetails }) => {
     const isRequester = match.requester_id === user?.id;
     const otherRide = isRequester ? match.matched_ride : match.ride_request;
     const canRespond = !isRequester && match.status === "pending";
 
+    // Calculate cost per person if other ride is offering with cost
+    let costBreakdown = null;
+    let totalDistance = 0;
+    const driverRide = match.ride_request.is_driver ? match.ride_request : match.matched_ride;
+    const passengerRide = !match.ride_request.is_driver ? match.ride_request : match.matched_ride;
+    if(driverRide && driverRide.is_driver && driverRide.total_cost && driverRide.seats_available) {
+      costBreakdown = calculateCostSplit(driverRide?.total_cost, driverRide?.seats_available, false);
+    }
+    
+    // Calculate total distance
+    if (driverRide && driverRide.pickup_lat && driverRide.pickup_lng && driverRide.destination_lat && driverRide.destination_lng) {
+      totalDistance = calculateDistance(
+        driverRide.pickup_lat,
+        driverRide.pickup_lng,
+        driverRide.destination_lat,
+        driverRide.destination_lng
+      );
+    } 
+    
     return (
       <Card className="mb-4">
         <CardContent>
@@ -170,6 +211,13 @@ export function MyMatchesScreen() {
             </View>
           )}
 
+          {/* Cost Information */}
+          {costBreakdown && (
+            <View className="mb-3 bg-blue-50 rounded-lg p-3">
+              <Text className="text-sm text-gray-700">Cost/Seat: <Text className="font-semibold text-blue-600">{costBreakdown.formattedPerPersonCost}</Text> • Seats: <Text className="font-semibold text-blue-600">{passengerRide.seats_needed}/{driverRide.seats_available}</Text> • Distance: <Text className="font-semibold text-blue-600">{totalDistance} km</Text></Text>
+            </View>
+          )}
+
           {match.message && (
              <View className="mb-3 p-3 bg-blue-50 rounded-lg flex-row items-start">
                 <MessageSquare size={16} color="#2563EB" className="mt-1" />
@@ -197,16 +245,10 @@ export function MyMatchesScreen() {
 
           {match.status === "accepted" && (
              <Button 
-                title="Call"
+                title="Call" 
                 variant="outline" 
                 className="w-full mt-2" 
-                onPress={() => {
-                  if (otherRide?.profiles?.phone) {
-                    Linking.openURL(`tel:${otherRide.profiles.phone}`);
-                  } else {
-                    Alert.alert("Error", "Phone number not available");
-                  }
-                }}
+                onPress={() => handleCall(otherRide?.profiles?.phone)}
              />
           )}
         </CardContent>

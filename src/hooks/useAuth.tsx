@@ -39,7 +39,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const signUp = async (email: string, password: string, fullName: string, gender: string, phone: string) => {
-    const { error } = await supabase.auth.signUp({
+    const { data, error } = await supabase.auth.signUp({
       email,
       password,
       options: {
@@ -50,7 +50,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
       }
     });
-    
+    await supabase.from('profiles').update({ phone, gender }).eq('user_id', data.user?.id);
     return { error: error as Error | null };
   };
 
