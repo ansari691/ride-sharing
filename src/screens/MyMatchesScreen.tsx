@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, ScrollView, Alert, TouchableOpacity, Linking } from 'react-native';
+import { View, Text, ScrollView, Alert, TouchableOpacity, Linking, Platform } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useAuth } from '../hooks/useAuth';
 import { useRideMatching } from '../hooks/useRideMatching';
@@ -122,33 +122,42 @@ export function MyMatchesScreen() {
     setResponding(null);
   };
 
-  const pendingMatches = matches.filter((m) => m.status === "pending");
-  const acceptedMatches = matches.filter((m) => m.status === "accepted");
-  const pastMatches = matches.filter((m) => m.status === "declined" || m.status === "cancelled");
+  const pendingMatches = matches.filter((m) => m.status === "pending" && (new Date(m.ride_request.departure_time) > new Date()));
+  const acceptedMatches = matches.filter((m) => m.status === "accepted" && (new Date(m.ride_request.departure_time) > new Date()));
+  const pastMatches = matches.filter((m) => m.status === "declined" || m.status === "cancelled" || (new Date(m.ride_request.departure_time) < new Date()));
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
     return date.toLocaleDateString() + ' ' + date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   };
 
-  const handleCall = (phoneNumber: string | null | undefined) => {
-    if (!phoneNumber) {
+  const handleCall = async (phoneNumber: string | null | undefined) => {
+    if (!phoneNumber?.trim()) {
       Alert.alert("Phone Number Unavailable", "The other user's phone number is not available.");
       return;
     }
-    const phoneUrl = `tel:${phoneNumber}`;
-    Linking.canOpenURL(phoneUrl)
-      .then(supported => {
-        if (supported) {
-          Linking.openURL(phoneUrl);
-        } else {
-          Alert.alert("Error", "Unable to make phone calls on this device.");
-        }
-      })
-      .catch(err => {
-        console.error("Error opening phone dialer:", err);
+
+    const sanitizedPhoneNumber = phoneNumber.replace(/[^\d+]/g, '');
+    if (!sanitizedPhoneNumber) {
+      Alert.alert("Invalid Phone Number", "The provided phone number format is not valid.");
+      return;
+    }
+
+    const primaryUrl = Platform.OS === 'ios'
+      ? `telprompt:${sanitizedPhoneNumber}`
+      : `tel:${sanitizedPhoneNumber}`;
+    const fallbackUrl = `tel:${sanitizedPhoneNumber}`;
+
+    try {
+      await Linking.openURL(primaryUrl);
+    } catch (primaryError) {
+      try {
+        await Linking.openURL(fallbackUrl);
+      } catch (fallbackError) {
+        console.error("Error opening phone dialer:", primaryError, fallbackError);
         Alert.alert("Error", "Failed to open phone dialer.");
-      });
+      }
+    }
   };
 
   
@@ -243,10 +252,10 @@ export function MyMatchesScreen() {
             </View>
           )}
 
-          {match.status === "accepted" && (
+          {match.status === "accepted" && !(new Date(otherRide.departure_time) < new Date()) && (
              <Button 
                 title="Call" 
-                variant="outline" 
+                variant="primary" 
                 className="w-full mt-2" 
                 onPress={() => handleCall(otherRide?.profiles?.phone)}
              />

@@ -26,7 +26,7 @@ export function CreateRideScreen() {
   const [destinationPlace, setDestinationPlace] = useState<MapboxPlace | null>(null);
   const [route, setRoute] = useState<MapboxRoute | null>(null);
 
-  const [date, setDate] = useState(new Date());
+  const [date, setDate] = useState(new Date(Date.now() + 24 * 60 * 60 * 1000));
   const [showPicker, setShowPicker] = useState(false);
 
   const [isDriver, setIsDriver] = useState(false);
