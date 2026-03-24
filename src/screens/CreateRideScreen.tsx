@@ -7,6 +7,7 @@ import { calculateDistance } from '../lib/costCalculations';
 import { Button } from '../components/ui/Button';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/Card';
 import { Input } from '../components/ui/Input';
+import { RadioButtonGroup } from '../components/ui/RadioButton';
 import { Container } from '../components/ui/Container';
 import { ArrowLeft } from 'lucide-react-native';
 import MapboxGL from '@rnmapbox/maps';
@@ -32,6 +33,7 @@ export function CreateRideScreen() {
   const [isDriver, setIsDriver] = useState(false);
   const [seatsNeeded, setSeatsNeeded] = useState("1");
   const [seatsAvailable, setSeatsAvailable] = useState("3");
+  const [genderPreference, setGenderPreference] = useState<"any" | "same_gender">("any");
   const [notes, setNotes] = useState("");
   const [totalCost, setTotalCost] = useState("");
   const [distance, setDistance] = useState<number>(0);
@@ -103,8 +105,11 @@ export function CreateRideScreen() {
     setIsSubmitting(true);
 
     try {
+      const profileId = user ? (await supabase.from("profiles").select("id").eq("user_id", user.id).single()).data?.id : null;
+
       const { data: newRide, error } = await supabase.from("ride_requests").insert({
         user_id: user?.id,
+        profile_id: profileId,
         pickup_address: pickupPlace.place_name,
         pickup_lat: pickupPlace.center[1], // lat is index 1
         pickup_lng: pickupPlace.center[0], // lng is index 0
@@ -115,6 +120,7 @@ export function CreateRideScreen() {
         is_driver: isDriver,
         seats_needed: isDriver ? 0 : parseInt(seatsNeeded),
         seats_available: isDriver ? parseInt(seatsAvailable) : null,
+        gender_preference: genderPreference,
         notes: notes || null,
         total_cost: isDriver && totalCost ? parseFloat(totalCost) : null,
         distance: distance > 0 ? distance : null,
@@ -341,6 +347,17 @@ export function CreateRideScreen() {
                     containerClassName="mb-4"
                   />
               )}
+
+              <RadioButtonGroup
+                label="Gender Preference"
+                value={genderPreference}
+                options={[
+                  { label: 'Any Gender', value: 'any' },
+                  { label: 'Same Gender', value: 'same_gender' },
+                ]}
+                onValueChange={(value) => setGenderPreference(value as "any" | "same_gender")}
+                containerClassName="mb-2"
+              />
 
                 <Input
                     label="Additional Notes"

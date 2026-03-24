@@ -23,6 +23,7 @@ interface RideRequest {
   is_driver: boolean;
   seats_needed: number;
   seats_available: number | null;
+  gender_preference: 'same_gender' | 'any';
   status: string;
   created_at: string;
   total_cost: number | null;
@@ -45,16 +46,33 @@ export function AvailableRidesScreen() {
     const fetchRides = async () => {
       if (!user) return;
 
-      const { data, error } = await supabase
-        .from("ride_requests")
-        .select("id, user_id, pickup_address, pickup_lat, pickup_lng, destination_address, destination_lat, destination_lng, departure_time, is_driver, seats_needed, seats_available, status, created_at, total_cost, distance")
-        .neq("user_id", user.id)
-        .eq("status", "pending")
-        .order("departure_time", { ascending: true });
+      // Fetch current user's gender from profiles
+      const { data: profileData, error: profileError } = await supabase
+        .from('profiles')
+        .select('gender')
+        .eq('user_id', user.id)
+        .single();
 
-      if (!error && data) {
-        setRides(data as RideRequest[]);
-        setFilteredRides(data as RideRequest[]);
+      const userGender = profileData?.gender || '';
+
+      // Fetch rides
+      let query = supabase
+        .from('ride_requests')
+        .select('id, user_id, pickup_address, pickup_lat, pickup_lng, destination_address, destination_lat, destination_lng, departure_time, is_driver, seats_needed, seats_available, gender_preference, status, created_at, total_cost, distance, profiles (gender)')
+        .neq('user_id', user.id)
+        .eq('status', 'pending')
+        .gt('departure_time', new Date().toISOString())
+        .order('departure_time', { ascending: true });
+
+      const { data, error } = await query;
+      
+      //@ts-ignore
+      const genderFilteredData = data?.filter(item => item.gender_preference === 'same_gender' ? item.profiles.gender === userGender : true)
+
+      if(genderFilteredData === null) setFilteredRides([]);
+      if (!error && genderFilteredData) {
+        setRides(genderFilteredData as RideRequest[]);
+        setFilteredRides(genderFilteredData as RideRequest[]);
       }
       setLoadingRides(false);
     };
@@ -139,6 +157,10 @@ export function AvailableRidesScreen() {
                   </Text>
               </View>
           </View>
+
+          <Text className="text-xs text-gray-500 mb-3">
+            Gender Preference: {ride.gender_preference === 'same_gender' ? 'Same Gender' : 'Any Gender'}
+          </Text>
 
           {/* Cost Information */}
           {costBreakdown && (

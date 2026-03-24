@@ -16,6 +16,7 @@ export interface RideRequest {
   is_driver: boolean;
   seats_needed: number;
   seats_available: number | null;
+  gender_preference: "same_gender" | "any";
   status: string;
   notes: string | null;
   total_cost: number | null;

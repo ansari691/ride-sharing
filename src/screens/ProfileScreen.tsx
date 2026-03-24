@@ -241,19 +241,18 @@ export function ProfileScreen() {
 
       <ScrollView showsVerticalScrollIndicator={false}>
         <View className="items-center mb-8">
-            <View className="w-24 h-24 bg-gray-200 rounded-full items-center justify-center mb-4 overflow-hidden relative">
+            {/* <View className="w-24 h-24 bg-gray-200 rounded-full items-center justify-center mb-4 overflow-hidden relative">
                 {profile?.avatar_url ? (
                     <Image source={{ uri: profile.avatar_url }} className="w-full h-full" />
                 ) : (
                     <UserIcon size={48} color="gray" />
                 )}
-                {/* Placeholder for avatar upload */}
                 {isEditing && (
                     <View className="absolute bottom-0 w-full bg-black/50 h-8 items-center justify-center">
                         <Camera size={16} color="white" />
                     </View>
                 )}
-            </View>
+            </View> */}
             {!isEditing && (
                 <>
                     <Text className="text-xl font-bold text-gray-900">{profile?.full_name}</Text>

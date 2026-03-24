@@ -18,6 +18,7 @@ interface RideRequest {
   is_driver: boolean;
   seats_needed: number;
   seats_available: number | null;
+  gender_preference: 'same_gender' | 'any';
   status: string;
   created_at: string;
   total_cost: number | null;
@@ -163,6 +164,10 @@ export function MyRidesScreen() {
                   </Text>
               </View>
           </View>
+
+          <Text className="text-xs text-gray-500 mb-3">
+            Gender Preference: {ride.gender_preference === 'same_gender' ? 'Same Gender' : 'Any Gender'}
+          </Text>
 
           {/* Cost Information */}
           {costBreakdown && (
